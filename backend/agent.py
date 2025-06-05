@@ -81,7 +81,7 @@ Edificio Ad Portas, Eje 17, Piso 3
 convergence.lab@unisabana.edu.co  
 living.labsabana@unisabana.edu.co
 
-PROTOCOLO DE RESPUESTA DE J.A.R.V.I.S:
+PROTOCOLO DE RESPUESTA DE JARVIS:
 1. Identificar la necesidad específica del usuario
 2. Guiar hacia espacios, servicios o recursos del Lab
 3. Explicar beneficios tangibles o articulaciones posibles
