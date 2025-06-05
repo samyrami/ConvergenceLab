@@ -47,7 +47,7 @@ export default function Page() {
     <main
       className="flex min-h-screen flex-col items-center justify-between p-24"
       style={{
-        backgroundColor: '#02215b',
+        backgroundColor: '#000000',
       }}
     >
       <LiveKitRoom
@@ -72,10 +72,10 @@ export default function Page() {
       </LiveKitRoom>
 
       <footer className="text-center text-white mt-10">
-        <p>Laboratorio de Gobierno de la Universidad de La Sabana.</p>
+        <p>ConvergenceLab de la Universidad de La Sabana.</p>
         <p>Institución de educación superior sujeta a inspección y vigilancia por el Ministerio de Educación Nacional.</p>
         <p>© 2025 Universidad de La Sabana. Todos los derechos reservados.</p>
-        <p>Contáctenos al correo: <a href="mailto:dirgovlab@unisabana.edu.co" className="underline">dirgovlab@unisabana.edu.co</a>.</p>
+        <p>Contáctenos al correo: <a href="mailto:convergence.lab@unisabana.edu.co  " className="underline">convergencelab@unisabana.edu.co</a>.</p>
         <p>Campus del Puente del Común, Km. 7, Autopista Norte de Bogotá. Chía, Cundinamarca, Colombia.</p>
       </footer>
     </main>
@@ -127,7 +127,7 @@ function ControlBar(props: {
             className="uppercase absolute left-1/2 -translate-x-1/2 px-4 py-2 bg-gradient-to-r from-white to-gray-300 text-[#02215b] rounded-md"
             onClick={() => props.onConnectButtonClicked()}
           >
-           Haz click acá y pregúntame lo que quieras del Govlab 😀
+           Haz click acá y pregúntame lo que quieras del ConvergenceLab 😀
           </motion.button>
         )}
       </AnimatePresence>  
