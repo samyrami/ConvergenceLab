@@ -47,7 +47,7 @@ export default function Page() {
     <main
       className="flex min-h-screen flex-col items-center justify-between p-24"
       style={{
-        backgroundColor: '#000000',
+        backgroundColor: '#FFFFFF',
       }}
     >
       <LiveKitRoom
@@ -71,11 +71,13 @@ export default function Page() {
         <NoAgentNotification state={agentState} />
       </LiveKitRoom>
 
-      <footer className="text-center text-white mt-10">
+      <footer className="text-center text-black mt-10">
         <p>ConvergenceLab de la Universidad de La Sabana.</p>
         <p>Institución de educación superior sujeta a inspección y vigilancia por el Ministerio de Educación Nacional.</p>
         <p>© 2025 Universidad de La Sabana. Todos los derechos reservados.</p>
-        <p>Contáctenos al correo: <a href="mailto:convergence.lab@unisabana.edu.co  " className="underline">convergencelab@unisabana.edu.co</a>.</p>
+        <p>Desarrollado por el GovLab de la Universidad de La Sabana</p>
+        <p>Desarrollador: <a href="https://github.com/samyrami" target="_blank" className="underline">Samuel Ramirez</a></p>
+        <p>Contáctenos al correo: <a href="mailto:convergence.lab@unisabana.edu.co" className="underline">convergencelab@unisabana.edu.co</a></p>
         <p>Campus del Puente del Común, Km. 7, Autopista Norte de Bogotá. Chía, Cundinamarca, Colombia.</p>
       </footer>
     </main>
@@ -124,7 +126,7 @@ function ControlBar(props: {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, top: "-10px" }}
             transition={{ duration: 1, ease: [0.09, 1.04, 0.245, 1.055] }}
-            className="uppercase absolute left-1/2 -translate-x-1/2 px-4 py-2 bg-gradient-to-r from-white to-gray-300 text-[#02215b] rounded-md"
+            className="uppercase absolute left-1/2 -translate-x-1/2 px-4 py-2 bg-gradient-to-r from-[#1903ff] to-[#6d5fff] text-white rounded-md"
             onClick={() => props.onConnectButtonClicked()}
           >
            Haz click acá y pregúntame lo que quieras del ConvergenceLab 😀
