@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import asyncio
+from typing import Optional
 from dotenv import load_dotenv
 
 from livekit import rtc
@@ -15,14 +16,14 @@ from livekit.agents import (
     WorkerOptions,
     cli,
 )
-# Import the plugins that are mentioned in your docs
+from livekit.agents._exceptions import APIConnectionError
 from livekit.plugins import openai, silero
 
 # Load environment variables from .env.local
 load_dotenv(dotenv_path=".env.local")
 
 # Configure logging
-logger = logging.getLogger("my-worker")
+logger = logging.getLogger("convergence-lab-agent")
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
@@ -108,43 +109,137 @@ BENEFICIOS CLAVE A COMUNICAR:
             chat_ctx.items = chat_ctx.items[-15:]
         await self.update_chat_ctx(chat_ctx)
 
+async def create_realtime_model_with_retry(max_retries: int = 3) -> openai.realtime.RealtimeModel:
+    """Create a realtime model with connection retry logic."""
+    for attempt in range(max_retries):
+        try:
+            model = openai.realtime.RealtimeModel(
+                voice="ash",
+                model="gpt-4o-realtime-preview",
+                temperature=0.6,
+            )
+            logger.info(f"Realtime model created successfully on attempt {attempt + 1}")
+            return model
+        except Exception as e:
+            logger.warning(f"Failed to create realtime model on attempt {attempt + 1}: {e}")
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # Exponential backoff
+                logger.info(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error("Failed to create realtime model after all retries")
+                raise
+
+async def start_agent_session_with_recovery(ctx: JobContext, max_retries: int = 3) -> None:
+    """Start agent session with automatic recovery on connection failures."""
+    
+    for attempt in range(max_retries):
+        session: Optional[AgentSession] = None
+        try:
+            logger.info(f"Starting agent session attempt {attempt + 1}")
+            
+            # Create the realtime model with retry logic
+            model = await create_realtime_model_with_retry()
+            
+            # Create the AgentSession with VAD
+            session = AgentSession(
+                llm=model,
+                vad=silero.VAD.load(),
+            )
+            
+            # Create and start the agent
+            agent = GovLabAssistant()
+            await session.start(
+                room=ctx.room,
+                agent=agent,
+            )
+            
+            # Generate initial greeting with timeout handling
+            try:
+                await asyncio.wait_for(
+                    session.generate_reply(
+                        instructions="Saluda brevemente al usuario e introduce el ConvergenceLab"
+                    ),
+                    timeout=10.0  # 10 second timeout
+                )
+                logger.info("Initial greeting generated successfully")
+            except asyncio.TimeoutError:
+                logger.warning("Initial greeting timed out, but session is active")
+            except Exception as e:
+                logger.warning(f"Failed to generate initial greeting: {e}, but session is active")
+            
+            logger.info("Agent session started successfully")
+            
+            # Keep the session alive and monitor for connection issues
+            await monitor_session_health(session, ctx)
+            
+        except APIConnectionError as e:
+            logger.error(f"API Connection error on attempt {attempt + 1}: {e}")
+            if session:
+                try:
+                    await session.stop()
+                except Exception:
+                    pass  # Ignore cleanup errors
+            
+            if attempt < max_retries - 1:
+                wait_time = 2 ** attempt
+                logger.info(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error("Failed to maintain stable connection after all retries")
+                raise
+                
+        except Exception as e:
+            logger.error(f"Unexpected error on attempt {attempt + 1}: {e}", exc_info=True)
+            if session:
+                try:
+                    await session.stop()
+                except Exception:
+                    pass
+            raise
+
+async def monitor_session_health(session: AgentSession, ctx: JobContext) -> None:
+    """Monitor session health and attempt recovery if needed."""
+    health_check_interval = 30  # Check every 30 seconds
+    
+    while True:
+        try:
+            await asyncio.sleep(health_check_interval)
+            
+            # Check if room is still connected
+            if ctx.room.connection_state == rtc.ConnectionState.CONN_DISCONNECTED:
+                logger.warning("Room disconnected, attempting to reconnect...")
+                await ctx.connect()
+                
+            # Add more health checks as needed
+            logger.debug("Session health check passed")
+            
+        except asyncio.CancelledError:
+            logger.info("Session monitoring cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Health check failed: {e}")
+            # You might want to trigger a reconnection here
+            break
+
 async def entrypoint(ctx: JobContext):
+    """Main entrypoint with enhanced error handling and recovery."""
     try:
         logger.info(f"Connecting to room {ctx.room.name}")
         await ctx.connect()
-
-        logger.info("Initializing agent session...")
-
-        # 1) Create the realtime LLM model
-        model = openai.realtime.RealtimeModel(
-            voice="ash",
-            model="gpt-4o-realtime-preview",
-            temperature=0.6,
-        )
-
-        # 2) Create the AgentSession without specifying an STT;
-        #    we only provide the VAD (via silero.VAD.load()) as per the docs.
-        session = AgentSession(
-            llm=model,
-            vad=silero.VAD.load(),
-        )
-
-        # 3) Create and start the agent
-        agent = GovLabAssistant()
-        await session.start(
-            room=ctx.room,
-            agent=agent,
-        )
-
-        # 4) Generate an initial greeting
-        await session.generate_reply(
-            instructions="Saluda al usuario de manera cordial e introduciendo al ConvergenceLab de la Universidad de La Sabana"
-        )
-
-        logger.info("Agent session started successfully")
-
+        
+        logger.info("Initializing agent session with recovery...")
+        await start_agent_session_with_recovery(ctx)
+        
+    except KeyboardInterrupt:
+        logger.info("Received shutdown signal")
     except Exception as e:
-        logger.error(f"Error in entrypoint: {e}", exc_info=True)
+        logger.error(f"Critical error in entrypoint: {e}", exc_info=True)
+        
+        # Attempt graceful fallback - you could implement a basic text-only mode here
+        logger.info("Attempting graceful fallback...")
+        # Add fallback logic if needed
+        
         raise
 
 if __name__ == "__main__":
@@ -157,6 +252,3 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Failed to start application: {e}", exc_info=True)
         raise
-
-
-
